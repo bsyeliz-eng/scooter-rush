@@ -1,0 +1,2717 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scooter Rush: City Escape</title>
+    <!-- Three.js 3D Motoru ve FontAwesome İkonları -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        #game-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* --- UI OVERLAY --- */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 16px;
+            z-index: 10;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Sol Üst HUD - Altın & Aktif Görev */
+        .hud-left {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Sağ Üst HUD - En İyi ve Şu Anki Skor */
+        .hud-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .hud-badge {
+            background: rgba(0, 0, 0, 0.65);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 6px 14px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: fit-content;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            backdrop-filter: blur(6px);
+        }
+
+        .badge-icon {
+            font-size: 18px;
+        }
+
+        .badge-text {
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+        }
+
+        .score-small-label {
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: -2px;
+        }
+
+        /* Toast Bildirim Kutusu */
+        #toast-notification {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #10b981;
+            color: #fff;
+            padding: 10px 22px;
+            border-radius: 25px;
+            font-weight: 900;
+            font-size: 14px;
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.5);
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        /* Power-Up Sayaç Paneli (Sol Taraf) */
+        .powerups-hud-panel {
+            position: absolute;
+            top: 130px;
+            left: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .powerup-container {
+            background: rgba(15, 23, 42, 0.85);
+            border: 2px solid #38bdf8;
+            border-radius: 16px;
+            padding: 6px 12px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(6px);
+            transition: opacity 0.3s;
+        }
+
+        .powerup-bar-bg {
+            width: 80px;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+
+        .powerup-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: #fef08a;
+            transition: width 0.1s linear;
+        }
+
+        /* Pause Butonu */
+        .pause-btn {
+            background: rgba(0, 0, 0, 0.65);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+            transition: transform 0.1s;
+        }
+
+        .pause-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* Ekran Altı Butonları Layout */
+        .controls-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: 100%;
+            padding: 0 10px 10px 10px;
+            transition: opacity 0.3s;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .arrow-btn {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #ffffff;
+            font-size: 32px;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            transition: background 0.15s, transform 0.1s;
+        }
+
+        .arrow-btn:active {
+            background: rgba(255, 255, 255, 0.35);
+            transform: scale(0.92);
+        }
+
+        /* Modal Ekranları */
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.88);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-card {
+            background: #1e293b;
+            border: 3px solid #f59e0b;
+            border-radius: 24px;
+            padding: 28px 24px;
+            width: 90%;
+            max-width: 440px;
+            color: #fff;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            text-align: center;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .game-title {
+            font-size: 36px;
+            font-weight: 900;
+            color: #f59e0b;
+            text-shadow: 0 4px 10px rgba(245, 158, 11, 0.4);
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+        }
+
+        .game-subtitle {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .btn-main {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #fff;
+            border: none;
+            width: 100%;
+            padding: 15px;
+            border-radius: 16px;
+            font-weight: 900;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+            transition: transform 0.15s;
+            margin-top: 10px;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            width: 100%;
+            padding: 13px;
+            border-radius: 16px;
+            font-weight: 800;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-top: 8px;
+        }
+
+        .btn-main:active, .btn-secondary:active {
+            transform: scale(0.96);
+        }
+
+        /* Mağaza & Yükseltme Tab Stilleri */
+        .shop-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .shop-tab-btn {
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .shop-tab-btn.active {
+            background: #38bdf8;
+            color: #0f172a;
+            border-color: #38bdf8;
+        }
+
+        .shop-section {
+            background: #0f172a;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+
+        .shop-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: #38bdf8;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+        }
+
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .shop-item-card {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 14px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .shop-item-card.active {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.15);
+        }
+
+        .shop-item-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: #f8fafc;
+        }
+
+        .shop-item-price {
+            font-size: 12px;
+            font-weight: 800;
+            color: #f59e0b;
+            margin-top: 4px;
+        }
+
+        .upgrade-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+
+        .upgrade-info {
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .upgrade-level-dots {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .upgrade-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #334155;
+        }
+
+        .upgrade-dot.filled {
+            background: #10b981;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #e2e8f0;
+        }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #f59e0b;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+
+        input[type=range] {
+            accent-color: #f59e0b;
+            cursor: pointer;
+        }
+
+        .score-box {
+            background: #0f172a;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 16px 0;
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .score-item-title {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .score-item-val {
+            font-size: 22px;
+            font-weight: 900;
+            color: #38bdf8;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 600px) {
+            .arrow-btn {
+                width: 70px;
+                height: 70px;
+                font-size: 28px;
+            }
+            .badge-text { font-size: 15px; }
+            .badge-icon { font-size: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- BİLDİRİM TOAST -->
+        <div id="toast-notification">Bildirim</div>
+
+        <!-- HUD ÜST ARAYÜZ -->
+        <div id="hud" class="ui-layer">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <!-- Sol Üst: Altın -->
+                <div class="hud-left">
+                    <div class="hud-badge">
+                        <i class="fa-solid fa-coins badge-icon" style="color: #eab308;"></i>
+                        <span class="badge-text" id="hud-coins" style="color: #fef08a;">0</span>
+                    </div>
+                </div>
+
+                <!-- Sağ Üst: En İyi Skor & Şu Anki Skor & Pause -->
+                <div class="hud-right">
+                    <div style="display: flex; gap: 8px;">
+                        <div class="hud-badge">
+                            <i class="fa-solid fa-crown badge-icon" style="color: #f59e0b;"></i>
+                            <div>
+                                <span class="score-small-label">En İyi Skor</span>
+                                <span class="badge-text" id="hud-best-score" style="color: #f59e0b;">0 m</span>
+                            </div>
+                        </div>
+
+                        <div class="hud-badge">
+                            <i class="fa-solid fa-person-running badge-icon" style="color: #38bdf8;"></i>
+                            <div>
+                                <span class="score-small-label">Şu Anki Skor</span>
+                                <span class="badge-text" id="hud-distance">0 m</span>
+                            </div>
+                        </div>
+
+                        <!-- Pause Butonu -->
+                        <div class="pause-btn interactive" id="btn-pause">
+                            <i class="fa-solid fa-pause"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sol Taraf Power-Up Sayaç Paneli -->
+            <div class="powerups-hud-panel">
+                <!-- Süper Ayakkabı -->
+                <div id="powerup-shoes" class="powerup-container hidden">
+                    <i class="fa-solid fa-shoe-prints" style="font-size: 16px; color: #fef08a;"></i>
+                    <div>
+                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">Zıplama</div>
+                        <div class="powerup-bar-bg"><div id="powerup-bar-fill-shoes" class="powerup-bar-fill"></div></div>
+                    </div>
+                    <span id="powerup-timer-shoes" style="font-size: 12px; font-weight: 900;">30s</span>
+                </div>
+
+                <!-- Altın Mıknatısı -->
+                <div id="powerup-magnet" class="powerup-container hidden">
+                    <i class="fa-solid fa-magnet" style="font-size: 16px; color: #ef4444;"></i>
+                    <div>
+                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">Mıknatıs</div>
+                        <div class="powerup-bar-bg"><div id="powerup-bar-fill-magnet" class="powerup-bar-fill" style="background:#ef4444;"></div></div>
+                    </div>
+                    <span id="powerup-timer-magnet" style="font-size: 12px; font-weight: 900;">10s</span>
+                </div>
+
+                <!-- Koruma Kalkanı -->
+                <div id="powerup-shield" class="powerup-container hidden" style="border-color:#38bdf8;">
+                    <i class="fa-solid fa-shield-halved" style="font-size: 16px; color: #38bdf8;"></i>
+                    <div>
+                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">Kalkan</div>
+                        <div class="powerup-bar-bg"><div id="powerup-bar-fill-shield" class="powerup-bar-fill" style="background:#38bdf8;"></div></div>
+                    </div>
+                    <span id="powerup-timer-shield" style="font-size: 12px; font-weight: 900;">15s</span>
+                </div>
+
+                <!-- 2x Skor Çarpanı -->
+                <div id="powerup-multiplier" class="powerup-container hidden" style="border-color:#f59e0b;">
+                    <i class="fa-solid fa-bolt" style="font-size: 16px; color: #f59e0b;"></i>
+                    <div>
+                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">2x Skor</div>
+                        <div class="powerup-bar-bg"><div id="powerup-bar-fill-multiplier" class="powerup-bar-fill" style="background:#f59e0b;"></div></div>
+                    </div>
+                    <span id="powerup-timer-multiplier" style="font-size: 12px; font-weight: 900;">15s</span>
+                </div>
+            </div>
+
+            <!-- Alt Ekran Sol/Sağ ve Zıpla Butonları -->
+            <div class="controls-bottom interactive" id="touch-controls">
+                <div class="control-group">
+                    <div class="arrow-btn" id="btn-left"><i class="fa-solid fa-arrow-left"></i></div>
+                    <div class="arrow-btn" id="btn-right"><i class="fa-solid fa-arrow-right"></i></div>
+                </div>
+                <div class="control-group">
+                    <div class="arrow-btn" id="btn-jump" style="background: rgba(16, 185, 129, 0.25);"><i class="fa-solid fa-arrow-up"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BAŞLANGIÇ ANA MENÜSÜ -->
+        <div id="modal-start" class="modal-overlay interactive">
+            <div class="modal-card">
+                <div class="game-title">SCOOTER RUSH</div>
+                <div class="game-subtitle">CITY ESCAPE</div>
+
+                <div style="margin-bottom: 12px; text-align: left;">
+                    <div style="font-size: 10px; color: #94a3b8; margin-bottom: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Oyuncu Adı (Skor Tablosunda Görünür)</div>
+                    <input type="text" id="player-name-input" maxlength="14" placeholder="Oyuncu Adın..."
+                           style="width:100%; box-sizing:border-box; background:#0f172a; border:2px solid #334155; border-radius:12px; padding:10px 12px; color:#fff; font-weight:800; font-size:14px; text-align:center;" />
+                </div>
+
+                <button class="btn-main" id="btn-start"><i class="fa-solid fa-play" style="margin-right: 8px;"></i> OYNA</button>
+                <button class="btn-secondary" id="btn-open-shop" style="background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; color: #fef08a;">
+                    <i class="fa-solid fa-store" style="margin-right: 8px;"></i> MAĞAZA & YÜKSELT
+                </button>
+                <button class="btn-secondary" id="btn-open-missions" style="background: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #a7f3d0;">
+                    <i class="fa-solid fa-list-check" style="margin-right: 8px;"></i> GÖREVLER
+                </button>
+                <button class="btn-secondary" id="btn-open-leaderboard" style="background: rgba(168, 85, 247, 0.15); border-color: #a855f7; color: #e9d5ff;">
+                    <i class="fa-solid fa-trophy" style="margin-right: 8px;"></i> SKOR TABLOSU
+                </button>
+                <button class="btn-secondary" id="btn-open-settings"><i class="fa-solid fa-gear" style="margin-right: 8px;"></i> AYARLAR</button>
+            </div>
+        </div>
+
+        <!-- MAĞAZA VE YÜKSELTME MODALI -->
+        <div id="modal-shop" class="modal-overlay interactive hidden">
+            <div class="modal-card">
+                <h2 style="color: #f59e0b; font-size: 24px; font-weight: 900; margin-bottom: 4px;">MAĞAZA</h2>
+                <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    <i class="fa-solid fa-coins" style="color: #eab308;"></i>
+                    <span style="font-weight: 900; color: #fef08a; font-size: 18px;" id="shop-coins-text">0</span>
+                </div>
+
+                <!-- Tab Seçici -->
+                <div class="shop-tabs">
+                    <button class="shop-tab-btn active" id="tab-btn-custom" onclick="switchShopTab('custom')">ÖZELLEŞTİR</button>
+                    <button class="shop-tab-btn" id="tab-btn-upgrades" onclick="switchShopTab('upgrades')">YÜKSELTMELER</button>
+                </div>
+
+                <!-- ÖZELLEŞTİRMA İÇERİĞİ -->
+                <div id="shop-tab-content-custom">
+                    <!-- KOSTÜMLER -->
+                    <div class="shop-section">
+                        <div class="shop-title"><i class="fa-solid fa-shirt"></i> Karakter Kostümü</div>
+                        <div class="shop-grid">
+                            <div class="shop-item-card active" id="shop-skin-default" onclick="selectOutfit('default')">
+                                <i class="fa-solid fa-user" style="font-size: 22px; color: #94a3b8; margin-bottom: 4px;"></i>
+                                <div class="shop-item-title">Klasik Hoodie</div>
+                                <div class="shop-item-price" style="color: #10b981;">AÇIK</div>
+                            </div>
+                            <div class="shop-item-card" id="shop-skin-dino" onclick="buyOrSelectOutfit('dino', 350)">
+                                <i class="fa-solid fa-dragon" style="font-size: 22px; color: #10b981; margin-bottom: 4px;"></i>
+                                <div class="shop-item-title">Dinazor Kostümü</div>
+                                <div class="shop-item-price" id="price-dino">350 Altın</div>
+                            </div>
+                            <div class="shop-item-card" id="shop-skin-neon" onclick="buyOrSelectOutfit('neon', 600)">
+                                <i class="fa-solid fa-bolt" style="font-size: 22px; color: #a855f7; margin-bottom: 4px;"></i>
+                                <div class="shop-item-title">Neon Rider</div>
+                                <div class="shop-item-price" id="price-neon">600 Altın</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SCOOTER RENKLERİ -->
+                    <div class="shop-section">
+                        <div class="shop-title"><i class="fa-solid fa-scooter"></i> Scooter Rengi</div>
+                        <div class="shop-grid">
+                            <div class="shop-item-card active" id="shop-scooter-black" onclick="selectScooterColor('black')">
+                                <div style="width: 18px; height: 18px; background: #1e293b; border-radius: 50%; margin: 0 auto 4px auto; border: 1px solid #fff;"></div>
+                                <div class="shop-item-title">Mat Siyah</div>
+                                <div class="shop-item-price" style="color: #10b981;">AÇIK</div>
+                            </div>
+                            <div class="shop-item-card" id="shop-scooter-blue" onclick="buyOrSelectScooter('blue', 150)">
+                                <div style="width: 18px; height: 18px; background: #0284c7; border-radius: 50%; margin: 0 auto 4px auto;"></div>
+                                <div class="shop-item-title">Mavi Pro</div>
+                                <div class="shop-item-price" id="price-scooter-blue">150 Altın</div>
+                            </div>
+                            <div class="shop-item-card" id="shop-scooter-red" onclick="buyOrSelectScooter('red', 250)">
+                                <div style="width: 18px; height: 18px; background: #ef4444; border-radius: 50%; margin: 0 auto 4px auto;"></div>
+                                <div class="shop-item-title">Kırmızı Rush</div>
+                                <div class="shop-item-price" id="price-scooter-red">250 Altın</div>
+                            </div>
+                            <div class="shop-item-card" id="shop-scooter-gold" onclick="buyOrSelectScooter('gold', 500)">
+                                <div style="width: 18px; height: 18px; background: #f59e0b; border-radius: 50%; margin: 0 auto 4px auto;"></div>
+                                <div class="shop-item-title">Altın Legend</div>
+                                <div class="shop-item-price" id="price-scooter-gold">500 Altın</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- YÜKSELTMELER İÇERİĞİ -->
+                <div id="shop-tab-content-upgrades" class="hidden">
+                    <div class="shop-section">
+                        <div class="shop-title"><i class="fa-solid fa-up-long"></i> Güçlendirici Yükseltmeleri</div>
+                        
+                        <!-- Mıknatıs -->
+                        <div class="upgrade-row">
+                            <div>
+                                <div class="upgrade-info"><i class="fa-solid fa-magnet" style="color:#ef4444"></i> Mıknatıs</div>
+                                <div class="upgrade-level-dots" id="dots-magnet"></div>
+                            </div>
+                            <button class="btn-main" style="width: auto; padding: 6px 12px; font-size: 12px; margin: 0;" id="btn-up-magnet" onclick="upgradePowerup('magnet')">Yükselt ($200)</button>
+                        </div>
+
+                        <!-- Kalkan -->
+                        <div class="upgrade-row">
+                            <div>
+                                <div class="upgrade-info"><i class="fa-solid fa-shield-halved" style="color:#38bdf8"></i> Kalkan</div>
+                                <div class="upgrade-level-dots" id="dots-shield"></div>
+                            </div>
+                            <button class="btn-main" style="width: auto; padding: 6px 12px; font-size: 12px; margin: 0;" id="btn-up-shield" onclick="upgradePowerup('shield')">Yükselt ($200)</button>
+                        </div>
+
+                        <!-- 2x Bonus -->
+                        <div class="upgrade-row">
+                            <div>
+                                <div class="upgrade-info"><i class="fa-solid fa-bolt" style="color:#f59e0b"></i> 2x Çarpan</div>
+                                <div class="upgrade-level-dots" id="dots-multiplier"></div>
+                            </div>
+                            <button class="btn-main" style="width: auto; padding: 6px 12px; font-size: 12px; margin: 0;" id="btn-up-multiplier" onclick="upgradePowerup('multiplier')">Yükselt ($200)</button>
+                        </div>
+
+                        <!-- Süper Zıplama -->
+                        <div class="upgrade-row">
+                            <div>
+                                <div class="upgrade-info"><i class="fa-solid fa-shoe-prints" style="color:#10b981"></i> Süper Zıplama</div>
+                                <div class="upgrade-level-dots" id="dots-shoes"></div>
+                            </div>
+                            <button class="btn-main" style="width: auto; padding: 6px 12px; font-size: 12px; margin: 0;" id="btn-up-shoes" onclick="upgradePowerup('shoes')">Yükselt ($200)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-main" id="btn-close-shop">TAMAM</button>
+            </div>
+        </div>
+
+        <!-- GÖREVLER MODALI -->
+        <div id="modal-missions" class="modal-overlay interactive hidden">
+            <div class="modal-card">
+                <h2 style="color: #10b981; font-size: 24px; font-weight: 900; margin-bottom: 12px;">GÖREVLER</h2>
+
+                <div class="shop-tabs">
+                    <button class="shop-tab-btn active" id="tab-btn-missions-weekly" onclick="switchMissionsTab('weekly')">HAFTALIK</button>
+                    <button class="shop-tab-btn" id="tab-btn-missions-achievements" onclick="switchMissionsTab('achievements')">BAŞARIMLAR</button>
+                </div>
+
+                <div id="missions-tab-content-weekly">
+                    <div id="weekly-reset-info" style="color: #94a3b8; font-size: 11px; margin-bottom: 10px; text-align: center;"></div>
+                    <div class="shop-section" id="weekly-quests-list-container">
+                        <!-- Dinamik Haftalık Görevler Yüklenecek -->
+                    </div>
+                </div>
+
+                <div id="missions-tab-content-achievements" class="hidden">
+                    <div class="shop-section" id="missions-list-container">
+                        <!-- Dinamik Başarımlar Yüklenecek -->
+                    </div>
+                </div>
+
+                <button class="btn-main" id="btn-close-missions">KAPAT</button>
+            </div>
+        </div>
+
+        <!-- SKOR TABLOSU MODALI -->
+        <div id="modal-leaderboard" class="modal-overlay interactive hidden">
+            <div class="modal-card">
+                <h2 style="color: #a855f7; font-size: 24px; font-weight: 900; margin-bottom: 4px;">
+                    <i class="fa-solid fa-trophy"></i> SKOR TABLOSU
+                </h2>
+                <p style="color:#94a3b8; font-size:12px; margin-bottom:14px;">En iyi 20 oyuncu, herkesle ortak</p>
+
+                <div class="shop-section" id="leaderboard-list-container" style="min-height:100px;">
+                    <div style="text-align:center; color:#64748b; padding: 20px 0;">Yükleniyor...</div>
+                </div>
+
+                <button class="btn-main" id="btn-close-leaderboard">KAPAT</button>
+            </div>
+        </div>
+
+        <!-- AYARLAR MODALI -->
+        <div id="modal-settings" class="modal-overlay interactive hidden">
+            <div class="modal-card">
+                <h2 style="color: #f59e0b; font-size: 26px; font-weight: 900; margin-bottom: 20px;">AYARLAR</h2>
+
+                <!-- SES AYARLARI -->
+                <div class="shop-section">
+                    <div class="shop-title"><i class="fa-solid fa-volume-high"></i> Ses Ayarları</div>
+                    <div class="setting-row">
+                        <span>Ses Efektleri & Müzik</span>
+                        <label class="switch">
+                            <input type="checkbox" id="setting-sound" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span>Ses Seviyesi</span>
+                        <input type="range" id="setting-volume" min="0" max="100" value="70" style="width: 100px;">
+                    </div>
+                </div>
+
+                <!-- KONTROL AYARLARI -->
+                <div class="shop-section">
+                    <div class="shop-title"><i class="fa-solid fa-gamepad"></i> Kontrol Ayarları</div>
+                    <div class="setting-row">
+                        <span>Ekran Butonları</span>
+                        <label class="switch">
+                            <input type="checkbox" id="setting-touch-btns" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span>Dönüş Hızı</span>
+                        <select id="setting-turn-speed" style="background: #1e293b; color: #fff; border: 1px solid #334155; padding: 4px 8px; border-radius: 6px;">
+                            <option value="0.12">Yavaş</option>
+                            <option value="0.18" selected>Normal</option>
+                            <option value="0.26">Hızlı</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn-main" id="btn-close-settings">KAYDET VE KAPAT</button>
+            </div>
+        </div>
+
+        <!-- GAME OVER EKRANI -->
+        <div id="modal-gameover" class="modal-overlay interactive hidden">
+            <div class="modal-card">
+                <h2 style="color: #ef4444; font-size: 32px; font-weight: 900; margin-bottom: 10px;">KAZA YAPTIN!</h2>
+                <p style="color: #94a3b8; font-size: 14px;">Trafiğe takıldın, tekrar dene!</p>
+                
+                <div class="score-box">
+                    <div>
+                        <div class="score-item-title">Mesafe</div>
+                        <div class="score-item-val" id="end-distance" style="color: #38bdf8;">0 m</div>
+                    </div>
+                    <div>
+                        <div class="score-item-title">En İyi</div>
+                        <div class="score-item-val" id="end-best-distance" style="color: #f59e0b;">0 m</div>
+                    </div>
+                    <div>
+                        <div class="score-item-title">Altın</div>
+                        <div class="score-item-val" id="end-coins" style="color: #eab308;">0</div>
+                    </div>
+                </div>
+
+                <button class="btn-main" id="btn-restart">TEKRAR DENE</button>
+                <button class="btn-secondary" id="btn-gameover-shop"><i class="fa-solid fa-store"></i> MAĞAZA</button>
+                <button class="btn-secondary" id="btn-gameover-leaderboard" style="background: rgba(168, 85, 247, 0.15); border-color: #a855f7; color: #e9d5ff;"><i class="fa-solid fa-trophy"></i> SKOR TABLOSU</button>
+                <button class="btn-secondary" id="btn-gameover-settings"><i class="fa-solid fa-gear"></i> AYARLAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN GAME LOGIC SCRIPT -->
+    <script>
+        /* =========================================================================
+           1. OYUN SABİTLERİ VE KAYIT DEĞİŞKENLERİ
+           ========================================================================= */
+        const SAVE_KEY = 'SCOOTER_RUSH_SAVE_V5';
+
+        const LANES = [-3.2, 0, 3.2];
+        let currentLane = 1;
+        
+        let isPlaying = false;
+        let distance = 0;
+        let coinsCollected = 0;
+        let gameSpeed = 32;
+        const maxGameSpeed = 78;
+
+        // Oyuncu İlerleme, Mağaza ve Yükseltme Verisi
+        let saveData = {
+            totalCoins: 0,
+            bestScore: 0,
+            unlockedSkins: ['default'],
+            selectedSkin: 'default',
+            unlockedScooters: ['black'],
+            selectedScooter: 'black',
+            upgrades: {
+                magnet: 1,
+                shield: 1,
+                multiplier: 1,
+                shoes: 1
+            },
+            completedMissions: [],
+            playerName: '',
+            playerId: '',
+            weeklyQuests: {
+                weekId: '',
+                progress: { distance: 0, coins: 0, powerups: 0, runs: 0 },
+                claimed: []
+            }
+        };
+
+        let gameSettings = {
+            soundEnabled: true,
+            volume: 0.7,
+            showTouchButtons: true,
+            turnSpeed: 0.18
+        };
+
+        // Görev Tanımları (Tek Seferlik Başarımlar)
+        const MISSIONS = [
+            { id: 'm1', text: 'Tek Elde 50 Altın Topla', reward: 150, target: 50, type: 'coins' },
+            { id: 'm2', text: 'Tek Elde 500 Metre Sür', reward: 200, target: 500, type: 'distance' },
+            { id: 'm3', text: '3 Adet Power-Up Topla', reward: 250, target: 3, type: 'powerups' }
+        ];
+
+        // Haftalık Görev Tanımları (İlerleme her hafta otomatik sıfırlanır)
+        const WEEKLY_QUESTS = [
+            { id: 'wq_distance', text: 'Bu Hafta Toplam 2000 Metre Koş', icon: 'fa-road', reward: 300, target: 2000, type: 'distance' },
+            { id: 'wq_coins', text: 'Bu Hafta Toplam 300 Altın Topla', icon: 'fa-coins', reward: 300, target: 300, type: 'coins' },
+            { id: 'wq_powerups', text: 'Bu Hafta 8 Güçlendirici Topla', icon: 'fa-bolt', reward: 250, target: 8, type: 'powerups' },
+            { id: 'wq_runs', text: 'Bu Hafta 5 Kez Oyna', icon: 'fa-gamepad', reward: 200, target: 5, type: 'runs' }
+        ];
+        let currentRunPowerupsCollected = 0;
+
+        // Fizik: Zıplama
+        let isJumping = false;
+        let jumpVelocity = 0;
+        const gravity = -42;
+        const NORMAL_JUMP_FORCE = 11;
+        const SUPER_JUMP_FORCE = 18;
+
+        // Güçlendirici (Power-Up) Aktiflik Durumları
+        let activePowerups = {
+            shoes: { active: false, timer: 0, baseDuration: 30 },
+            magnet: { active: false, timer: 0, baseDuration: 10 },
+            shield: { active: false, timer: 0, baseDuration: 15, hitsRemaining: 0 },
+            multiplier: { active: false, timer: 0, baseDuration: 15 }
+        };
+
+        // Three.js Bileşenleri
+        let scene, camera, renderer;
+        let playerGroup, scooterMesh, riderMesh, auraMesh, shieldBubbleMesh, headlightLight;
+        let citySegments = [];
+        let obstacles = [];
+        let coins = [];
+        let powerups = [];
+        let rainParticles = null;
+        let snowParticles = null;
+        let snowTracks = [];
+        let snowTrackTimer = 0;
+        let isSnowSeason = false;
+
+        // Işıklandırma ve Sis Referansları (Gece-Gündüz için)
+        let dirLight, ambientLight;
+
+        const clock = new THREE.Clock();
+
+        /* =========================================================================
+           2. YARDIMCI VE KAYIT FONKSİYONLARI
+           ========================================================================= */
+        function showToast(text, isSuccess = false) {
+            const toast = document.getElementById('toast-notification');
+            if (!toast) return;
+            toast.innerText = text;
+            toast.style.background = isSuccess ? '#10b981' : '#ef4444';
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 2200);
+        }
+
+        function loadSaveData() {
+            try {
+                const raw = localStorage.getItem(SAVE_KEY);
+                if (raw) {
+                    saveData = { ...saveData, ...JSON.parse(raw) };
+                }
+            } catch(e) {}
+            ensurePlayerId();
+            initPlayerName();
+            ensureWeeklyReset();
+            updateUIStats();
+        }
+
+        function writeSaveData() {
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+            } catch(e) {}
+            updateUIStats();
+        }
+
+        function updateUIStats() {
+            document.getElementById('hud-coins').innerText = saveData.totalCoins;
+            document.getElementById('hud-best-score').innerText = `${saveData.bestScore} m`;
+            document.getElementById('shop-coins-text').innerText = saveData.totalCoins;
+        }
+
+        // Oyuncu Kimliği: Skor Tablosunda aynı isimdeki farklı kişilerin
+        // birbirinin skorunu ezmemesi için her cihaza özel sabit bir ID üretilir.
+        function ensurePlayerId() {
+            if (!saveData.playerId) {
+                saveData.playerId = 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+                writeSaveData();
+            }
+        }
+
+        function initPlayerName() {
+            if (!saveData.playerName) {
+                saveData.playerName = 'Oyuncu' + Math.floor(1000 + Math.random() * 9000);
+                writeSaveData();
+            }
+            const input = document.getElementById('player-name-input');
+            if (input) {
+                input.value = saveData.playerName;
+                input.addEventListener('change', () => {
+                    const val = input.value.trim().slice(0, 14);
+                    saveData.playerName = val || ('Oyuncu' + Math.floor(1000 + Math.random() * 9000));
+                    input.value = saveData.playerName;
+                    writeSaveData();
+                });
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.innerText = String(str);
+            return div.innerHTML;
+        }
+
+        // Haftalık Görevler için ISO hafta kimliği üretir (örn: "2026-W35").
+        // Pazartesi günü başlar; her yeni hafta farklı bir kimlik döner.
+        function getISOWeekId(d = new Date()) {
+            const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            const dayNum = (date.getUTCDay() + 6) % 7;
+            date.setUTCDate(date.getUTCDate() - dayNum + 3);
+            const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+            const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+            firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+            const weekNum = 1 + Math.round((date - firstThursday) / (7 * 24 * 3600 * 1000));
+            return `${date.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+        }
+
+        function daysUntilNextReset() {
+            const now = new Date();
+            const day = now.getDay();
+            return ((8 - day) % 7) || 7;
+        }
+
+        function ensureWeeklyReset() {
+            const currentWeekId = getISOWeekId();
+            if (!saveData.weeklyQuests || saveData.weeklyQuests.weekId !== currentWeekId) {
+                saveData.weeklyQuests = {
+                    weekId: currentWeekId,
+                    progress: { distance: 0, coins: 0, powerups: 0, runs: 0 },
+                    claimed: []
+                };
+                writeSaveData();
+            }
+        }
+
+        /* =========================================================================
+           3. SES & MÜZİK MOTORU
+           ========================================================================= */
+        let audioCtx = null;
+        let musicGainNode = null;
+        let musicTimer = null;
+        let musicStep = 0;
+        let isMusicPlaying = false;
+
+        const musicNotes = [
+            261.63, 329.63, 392.00, 523.25, 392.00, 329.63,
+            293.66, 349.23, 440.00, 587.33, 440.00, 349.23,
+            329.63, 392.00, 493.88, 659.25, 493.88, 392.00,
+            349.23, 440.00, 523.25, 698.46, 523.25, 440.00
+        ];
+
+        const bassNotes = [130.81, 146.83, 164.81, 174.61];
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function startMusic() {
+            initAudio();
+            if (isMusicPlaying) return;
+            isMusicPlaying = true;
+            musicStep = 0;
+
+            if (!musicGainNode) {
+                musicGainNode = audioCtx.createGain();
+                musicGainNode.connect(audioCtx.destination);
+            }
+            updateVolumeLevel();
+
+            musicTimer = setInterval(() => {
+                if (!isPlaying || !gameSettings.soundEnabled) return;
+
+                const currentTime = audioCtx.currentTime;
+
+                const osc = audioCtx.createOscillator();
+                const noteGain = audioCtx.createGain();
+                
+                osc.type = 'triangle';
+                const freq = musicNotes[musicStep % musicNotes.length];
+                osc.frequency.setValueAtTime(freq, currentTime);
+
+                noteGain.gain.setValueAtTime(0.08, currentTime);
+                noteGain.gain.exponentialRampToValueAtTime(0.001, currentTime + 0.12);
+
+                osc.connect(noteGain);
+                noteGain.connect(musicGainNode);
+
+                osc.start(currentTime);
+                osc.stop(currentTime + 0.12);
+
+                if (musicStep % 2 === 0) {
+                    const bassOsc = audioCtx.createOscillator();
+                    const bassGain = audioCtx.createGain();
+
+                    bassOsc.type = 'sine';
+                    const bassFreq = bassNotes[Math.floor(musicStep / 6) % bassNotes.length];
+                    bassOsc.frequency.setValueAtTime(bassFreq, currentTime);
+
+                    bassGain.gain.setValueAtTime(0.15, currentTime);
+                    bassGain.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.2);
+
+                    bassOsc.connect(bassGain);
+                    bassGain.connect(musicGainNode);
+
+                    bassOsc.start(currentTime);
+                    bassOsc.stop(currentTime + 0.2);
+                }
+
+                musicStep++;
+            }, 140);
+        }
+
+        function stopMusic() {
+            isMusicPlaying = false;
+            if (musicTimer) {
+                clearInterval(musicTimer);
+                musicTimer = null;
+            }
+        }
+
+        function updateVolumeLevel() {
+            if (musicGainNode && audioCtx) {
+                const vol = gameSettings.soundEnabled ? gameSettings.volume : 0;
+                musicGainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+            }
+        }
+
+        function playCoinSound() {
+            if (!gameSettings.soundEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1400, audioCtx.currentTime + 0.1);
+                
+                gain.gain.setValueAtTime(gameSettings.volume * 0.4, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } catch(e){}
+        }
+
+        function playPowerupSound() {
+            if (!gameSettings.soundEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
+                
+                gain.gain.setValueAtTime(gameSettings.volume * 0.6, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } catch(e){}
+        }
+
+        function playCrashSound() {
+            if (!gameSettings.soundEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+                
+                gain.gain.setValueAtTime(gameSettings.volume * 0.6, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } catch(e){}
+        }
+
+        /* =========================================================================
+           4. THREE.JS SAHNE VE IŞIK KURULUMU
+           ========================================================================= */
+        function initEngine() {
+            const container = document.getElementById('game-container');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x70b5f9);
+            scene.fog = new THREE.FogExp2(0x70b5f9, 0.008);
+
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 300);
+            camera.position.set(0, 3.8, 6.2);
+            camera.rotation.x = -0.22;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.08;
+            container.appendChild(renderer.domElement);
+
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+            scene.add(ambientLight);
+
+            dirLight = new THREE.DirectionalLight(0xfff3d1, 1.1);
+            dirLight.position.set(30, 60, 20);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 150;
+            const d = 30;
+            dirLight.shadow.camera.left = -d;
+            dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d;
+            dirLight.shadow.camera.bottom = -d;
+            scene.add(dirLight);
+
+            createRainParticles();
+            createSnowParticles();
+            loadSaveData();
+            createPlayer();
+            initCitySegments();
+
+            window.addEventListener('resize', onWindowResize);
+            setupInputListeners();
+
+            animate();
+        }
+
+        function createSnowParticles() {
+            const geo = new THREE.BufferGeometry();
+            const count = 480;
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                positions[i*3] = (Math.random() - 0.5) * 30;
+                positions[i*3+1] = Math.random() * 22;
+                positions[i*3+2] = (Math.random() - 0.5) * 32;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const mat = new THREE.PointsMaterial({
+                color: 0xffffff, size: 0.20, transparent: true, opacity: 0.88,
+                depthWrite: false
+            });
+            snowParticles = new THREE.Points(geo, mat);
+            snowParticles.visible = false;
+            scene.add(snowParticles);
+        }
+
+        function createRainParticles() {
+            const rainGeo = new THREE.BufferGeometry();
+            const count = 350;
+            const positions = new Float32Array(count * 3);
+
+            for (let i = 0; i < count; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 30;
+                positions[i * 3 + 1] = Math.random() * 20;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 30;
+            }
+
+            rainGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const rainMat = new THREE.PointsMaterial({
+                color: 0x93c5fd,
+                size: 0.15,
+                transparent: true,
+                opacity: 0.7
+            });
+
+            rainParticles = new THREE.Points(rainGeo, rainMat);
+            rainParticles.visible = false; // Yağmurlu havada açılacak
+            scene.add(rainParticles);
+        }
+
+        /* =========================================================================
+           5. SCOOTER VE SÜRÜCÜ MODELİ
+           ========================================================================= */
+        let deckMeshMaterial;
+
+        function createPlayer() {
+            if (playerGroup) scene.remove(playerGroup);
+
+            playerGroup = new THREE.Group();
+            scooterMesh = new THREE.Group();
+
+            const scooterColorMap = {
+                black: 0x1e293b,
+                blue: 0x0284c7,
+                red: 0xef4444,
+                gold: 0xf59e0b
+            };
+            const currentScooterColor = scooterColorMap[saveData.selectedScooter] || 0x1e293b;
+
+            deckMeshMaterial = new THREE.MeshStandardMaterial({ color: currentScooterColor, roughness: 0.4 });
+            const matDarkMetal = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.8 });
+            const matRedLight = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+
+            const deck = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.1, 1.4), deckMeshMaterial);
+            deck.position.y = 0.22;
+            deck.castShadow = true;
+            scooterMesh.add(deck);
+
+            const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.12, 20);
+            wheelGeo.rotateZ(Math.PI / 2);
+
+            const frontWheel = new THREE.Mesh(wheelGeo, matDarkMetal);
+            frontWheel.position.set(0, 0.2, -0.6);
+            frontWheel.castShadow = true;
+            scooterMesh.add(frontWheel);
+
+            const backWheel = new THREE.Mesh(wheelGeo, matDarkMetal);
+            backWheel.position.set(0, 0.2, 0.6);
+            backWheel.castShadow = true;
+            scooterMesh.add(backWheel);
+
+            const tailLight = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.05), matRedLight);
+            tailLight.position.set(0, 0.28, 0.7);
+            scooterMesh.add(tailLight);
+
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.1), matDarkMetal);
+            pole.position.set(0, 0.75, -0.55);
+            pole.rotation.x = -0.08;
+            pole.castShadow = true;
+            scooterMesh.add(pole);
+
+            const handlebar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.65), deckMeshMaterial);
+            handlebar.rotation.z = Math.PI / 2;
+            handlebar.position.set(0, 1.25, -0.58);
+            handlebar.castShadow = true;
+            scooterMesh.add(handlebar);
+
+            // Scooter Ön Far Işığı (Gece modu için)
+            headlightLight = new THREE.SpotLight(0xffffff, 0);
+            headlightLight.position.set(0, 1.2, -0.6);
+            headlightLight.target.position.set(0, 0, -20);
+            scooterMesh.add(headlightLight);
+            scooterMesh.add(headlightLight.target);
+
+            // Süper Ayakkabı Aura Efekti
+            const auraGeo = new THREE.RingGeometry(0.4, 0.9, 24);
+            auraGeo.rotateX(-Math.PI / 2);
+            const auraMat = new THREE.MeshBasicMaterial({ color: 0x34d399, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+            auraMesh = new THREE.Mesh(auraGeo, auraMat);
+            auraMesh.position.y = 0.02;
+            auraMesh.visible = false;
+            scooterMesh.add(auraMesh);
+
+            // Koruma Kalkanı Balonu (Shield Bubble)
+            const bubbleGeo = new THREE.SphereGeometry(1.6, 24, 24);
+            const bubbleMat = new THREE.MeshStandardMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.45,
+                roughness: 0.1,
+                metalness: 0.9
+            });
+            shieldBubbleMesh = new THREE.Mesh(bubbleGeo, bubbleMat);
+            shieldBubbleMesh.position.set(0, 1.0, 0);
+            shieldBubbleMesh.visible = false;
+            playerGroup.add(shieldBubbleMesh);
+
+            playerGroup.add(scooterMesh);
+
+            riderMesh = new THREE.Group();
+
+            const isDino = saveData.selectedSkin === 'dino';
+            const isNeon = saveData.selectedSkin === 'neon';
+            const matBody = new THREE.MeshStandardMaterial({ color: isDino ? 0x10b981 : (isNeon ? 0x7c3aed : 0x18181b), roughness: isNeon ? 0.45 : 0.8, metalness: isNeon ? 0.25 : 0 });
+            const matPants = new THREE.MeshStandardMaterial({ color: isDino ? 0x047857 : (isNeon ? 0x111827 : 0x27272a), roughness: 0.8 });
+            const matSkin = new THREE.MeshStandardMaterial({ color: 0xe5a970 });
+            const matShoes = new THREE.MeshStandardMaterial({ color: isDino ? 0x047857 : (isNeon ? 0x22d3ee : 0xf8fafc), emissive: isNeon ? 0x0891b2 : 0x000000, emissiveIntensity: isNeon ? 0.45 : 0 });
+
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.58, 0.28), matBody);
+            torso.position.set(0, 0.88, -0.05);
+            torso.castShadow = true;
+            riderMesh.add(torso);
+
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), matSkin);
+            head.position.set(0, 1.32, -0.05);
+            riderMesh.add(head);
+
+            if (isDino) {
+                const dinoHeadMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.6 });
+                const dinoHood = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.38), dinoHeadMat);
+                dinoHood.position.set(0, 1.36, -0.05);
+                riderMesh.add(dinoHood);
+
+                const dinoSnout = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.18, 0.22), dinoHeadMat);
+                dinoSnout.position.set(0, 1.30, -0.22);
+                riderMesh.add(dinoSnout);
+
+                const spikeMat = new THREE.MeshStandardMaterial({ color: 0xfef08a });
+                for (let s = 0; s < 4; s++) {
+                    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 4), spikeMat);
+                    spike.position.set(0, 1.4 - (s * 0.2), 0.14);
+                    spike.rotation.x = Math.PI / 3;
+                    riderMesh.add(spike);
+                }
+            } else {
+                const helmetMat = new THREE.MeshStandardMaterial({ color: isNeon ? 0x111827 : 0x09090b, roughness: 0.3, metalness: isNeon ? 0.4 : 0, emissive: isNeon ? 0x2563eb : 0x000000, emissiveIntensity: isNeon ? 0.4 : 0 });
+                const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), helmetMat);
+                helmet.position.set(0, 1.35, -0.05);
+                helmet.castShadow = true;
+                riderMesh.add(helmet);
+                if (isNeon) {
+                    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.05, 0.04), new THREE.MeshBasicMaterial({ color: 0x22d3ee }));
+                    visor.position.set(0, 1.34, -0.19);
+                    riderMesh.add(visor);
+                    const neonBand = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.018, 6, 20, Math.PI), new THREE.MeshBasicMaterial({ color: 0xa855f7 }));
+                    neonBand.rotation.x = Math.PI / 2;
+                    neonBand.position.set(0, 1.38, -0.05);
+                    riderMesh.add(neonBand);
+                }
+            }
+
+            const legGeo = new THREE.BoxGeometry(0.13, 0.52, 0.13);
+            const shoeGeo = new THREE.BoxGeometry(0.14, 0.1, 0.24);
+
+            const leftLeg = new THREE.Mesh(legGeo, matPants);
+            leftLeg.position.set(-0.12, 0.48, -0.15);
+            riderMesh.add(leftLeg);
+
+            const leftShoe = new THREE.Mesh(shoeGeo, matShoes);
+            leftShoe.position.set(-0.12, 0.24, -0.18);
+            riderMesh.add(leftShoe);
+
+            const rightLeg = new THREE.Mesh(legGeo, matPants);
+            rightLeg.position.set(0.12, 0.48, 0.12);
+            riderMesh.add(rightLeg);
+
+            const rightShoe = new THREE.Mesh(shoeGeo, matShoes);
+            rightShoe.position.set(0.12, 0.24, 0.09);
+            riderMesh.add(rightShoe);
+
+            const armGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.48);
+
+            const leftArm = new THREE.Mesh(armGeo, matBody);
+            leftArm.position.set(-0.24, 1.05, -0.3);
+            leftArm.rotation.x = Math.PI / 3.2;
+            leftArm.rotation.z = -0.15;
+            riderMesh.add(leftArm);
+
+            const rightArm = new THREE.Mesh(armGeo, matBody);
+            rightArm.position.set(0.24, 1.05, -0.3);
+            rightArm.rotation.x = Math.PI / 3.2;
+            rightArm.rotation.z = 0.15;
+            riderMesh.add(rightArm);
+
+            playerGroup.add(riderMesh);
+            playerGroup.position.set(LANES[currentLane], 0, 0);
+            scene.add(playerGroup);
+        }
+
+        /* =========================================================================
+           6. SONSUZ ŞEHİR VE DOKULAR
+           ========================================================================= */
+        const SEGMENT_LENGTH = 80;
+        const NUM_SEGMENTS = 5;
+
+        function initCitySegments() {
+            for (let i = 0; i < NUM_SEGMENTS; i++) {
+                const seg = createCitySegment(-i * SEGMENT_LENGTH);
+                citySegments.push(seg);
+                scene.add(seg);
+            }
+        }
+
+        function createCitySegment(zPosition) {
+            const segment = new THREE.Group();
+            segment.position.z = zPosition;
+
+            const roadMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.7 });
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(12, SEGMENT_LENGTH), roadMat);
+            road.rotation.x = -Math.PI / 2;
+            road.receiveShadow = true;
+            segment.add(road);
+
+            const snowRoad = new THREE.Mesh(
+                new THREE.PlaneGeometry(11.86, SEGMENT_LENGTH),
+                new THREE.MeshStandardMaterial({ color: 0xf5f9ff, roughness: 1.0, transparent: true, opacity: 0 })
+            );
+            snowRoad.rotation.x = -Math.PI / 2;
+            snowRoad.position.y = 0.018;
+            snowRoad.receiveShadow = true;
+            segment.add(snowRoad);
+            segment.userData.snowRoad = snowRoad;
+
+            const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            for (let z = -SEGMENT_LENGTH / 2; z < SEGMENT_LENGTH / 2; z += 6) {
+                const lLine = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 2.8), lineMat);
+                lLine.rotation.x = -Math.PI / 2;
+                lLine.position.set(-1.6, 0.01, z);
+                segment.add(lLine);
+
+                const rLine = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 2.8), lineMat);
+                rLine.rotation.x = -Math.PI / 2;
+                rLine.position.set(1.6, 0.01, z);
+                segment.add(rLine);
+            }
+
+            const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.8 });
+            const sidewalkGeo = new THREE.BoxGeometry(4, 0.3, SEGMENT_LENGTH);
+
+            const leftSidewalk = new THREE.Mesh(sidewalkGeo, sidewalkMat);
+            leftSidewalk.position.set(-8, 0.15, 0);
+            leftSidewalk.receiveShadow = true;
+            segment.add(leftSidewalk);
+
+            const snowBankMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1.0, transparent: true, opacity: 0 });
+            const bankGeo = new THREE.BoxGeometry(0.55, 0.42, SEGMENT_LENGTH);
+            const leftSnowBank = new THREE.Mesh(bankGeo, snowBankMat.clone());
+            leftSnowBank.position.set(-6.0, 0.21, 0);
+            segment.add(leftSnowBank);
+            const rightSnowBank = new THREE.Mesh(bankGeo, snowBankMat.clone());
+            rightSnowBank.position.set(6.0, 0.21, 0);
+            segment.add(rightSnowBank);
+            segment.userData.snowBanks = [leftSnowBank, rightSnowBank];
+
+            const rightSidewalk = new THREE.Mesh(sidewalkGeo, sidewalkMat);
+            rightSidewalk.position.set(8, 0.15, 0);
+            rightSidewalk.receiveShadow = true;
+            segment.add(rightSidewalk);
+
+            const buildingColors = [0xd97706, 0x0284c7, 0x059669, 0xb91c1c, 0x475569];
+
+            for (let z = -SEGMENT_LENGTH / 2 + 8; z < SEGMENT_LENGTH / 2; z += 18) {
+                const bLeft = createBuilding(buildingColors[Math.floor(Math.random() * buildingColors.length)]);
+                bLeft.position.set(-13, 0, z);
+                segment.add(bLeft);
+
+                const bRight = createBuilding(buildingColors[Math.floor(Math.random() * buildingColors.length)]);
+                bRight.position.set(13, 0, z);
+                bRight.rotation.y = Math.PI;
+                segment.add(bRight);
+
+                const treeLeft = createTree();
+                treeLeft.position.set(-6.5, 0.3, z + 5);
+                segment.add(treeLeft);
+
+                const treeRight = createTree();
+                treeRight.position.set(6.5, 0.3, z + 5);
+                segment.add(treeRight);
+            }
+
+            return segment;
+        }
+
+        function createBuilding(colorHex) {
+            const group = new THREE.Group();
+            const h = 18 + Math.random() * 12;
+
+            const bMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.5 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(6, h, 14), bMat);
+            body.position.y = h / 2;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            group.add(body);
+
+            const winMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+            for (let y = 3; y < h - 2; y += 3) {
+                for (let z = -4; z <= 4; z += 4) {
+                    const win = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.8), winMat);
+                    win.position.set(3.01, y, z);
+                    win.rotation.y = Math.PI / 2;
+                    group.add(win);
+                }
+            }
+
+            return group;
+        }
+
+        function createTree() {
+            const group = new THREE.Group();
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 2.5), trunkMat);
+            trunk.position.y = 1.25;
+            trunk.castShadow = true;
+            group.add(trunk);
+
+            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6 });
+            const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.4, 8, 8), leavesMat);
+            leaves.position.y = 3.0;
+            leaves.castShadow = true;
+            group.add(leaves);
+
+            return group;
+        }
+
+        /* =========================================================================
+           7. ENGELLER, ALTINLAR VE POWER-UP MODEL OLUŞTURMA
+           ========================================================================= */
+        function spawnObstacleAndCoins(zPos) {
+            const rand = Math.random();
+            const laneIdx = Math.floor(Math.random() * 3);
+
+            if (rand < 0.55) {
+                const car = createCarMesh();
+                car.position.set(LANES[laneIdx], 0.7, zPos);
+                car.userData = { type: 'car', driveSpeed: 15 + Math.random() * 12 };
+                obstacles.push(car);
+                scene.add(car);
+            } else if (rand < 0.85) {
+                const barrier = createJumpBarrier();
+                barrier.position.set(LANES[laneIdx], 0, zPos);
+                barrier.userData = { type: 'jump_barrier' };
+                obstacles.push(barrier);
+                scene.add(barrier);
+            }
+
+            // Power-Up Doğma Şansı (%15)
+            if (Math.random() < 0.15 && powerups.length < 2) {
+                const types = ['shoes', 'magnet', 'shield', 'multiplier'];
+                const pType = types[Math.floor(Math.random() * types.length)];
+                const pu = createPowerupMesh(pType);
+                const pLane = (laneIdx + 1) % 3;
+                pu.position.set(LANES[pLane], 1.0, zPos - 12);
+                pu.userData = { powerupType: pType };
+                powerups.push(pu);
+                scene.add(pu);
+            }
+
+            const coinLaneIdx = Math.floor(Math.random() * 3);
+            const coinGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.12, 16);
+            coinGeo.rotateX(Math.PI / 2);
+            const coinMat = new THREE.MeshStandardMaterial({ color: 0xeab308, metalness: 0.9, roughness: 0.1 });
+
+            for (let i = 0; i < 5; i++) {
+                const coin = new THREE.Mesh(coinGeo, coinMat);
+                const yOffset = Math.sin((i / 4) * Math.PI) * 0.8 + 0.8;
+                coin.position.set(LANES[coinLaneIdx], yOffset, zPos - (i * 2.5));
+                coin.castShadow = true;
+                coins.push(coin);
+                scene.add(coin);
+            }
+        }
+
+        function createCarMesh() {
+            const carGroup = new THREE.Group();
+            const carColors = [0xeab308, 0xef4444, 0x3b82f6, 0x10b981, 0x8b5cf6];
+            const carMat = new THREE.MeshStandardMaterial({ color: carColors[Math.floor(Math.random() * carColors.length)], roughness: 0.3 });
+            const glassMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1 });
+            const headlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.9, 4.0), carMat);
+            body.position.y = 0.45;
+            body.castShadow = true;
+            carGroup.add(body);
+
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.7, 2.2), glassMat);
+            cabin.position.set(0, 1.15, -0.2);
+            cabin.castShadow = true;
+            carGroup.add(cabin);
+
+            const headlightL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.1), headlightMat);
+            headlightL.position.set(-0.7, 0.5, 2.02);
+            carGroup.add(headlightL);
+
+            const headlightR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.1), headlightMat);
+            headlightR.position.set(0.7, 0.5, 2.02);
+            carGroup.add(headlightR);
+
+            return carGroup;
+        }
+
+        function createJumpBarrier() {
+            const group = new THREE.Group();
+            const matStripe = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.4 });
+            const matLeg = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+
+            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.2), matLeg);
+            legL.position.set(-1.1, 0.6, 0);
+            legL.castShadow = true;
+            group.add(legL);
+
+            const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.2), matLeg);
+            legR.position.set(1.1, 0.6, 0);
+            legR.castShadow = true;
+            group.add(legR);
+
+            const board = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.4, 0.12), matStripe);
+            board.position.set(0, 0.9, 0);
+            board.castShadow = true;
+            group.add(board);
+
+            return group;
+        }
+
+        function createPowerupMesh(type) {
+            const group = new THREE.Group();
+
+            if (type === 'shoes') {
+                const matShoe = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.2 });
+                const matSole = new THREE.MeshStandardMaterial({ color: 0xfde047 });
+                const sole = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.15, 1.1), matSole);
+                sole.position.y = 0.08;
+                group.add(sole);
+                const shoeBody = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.45, 0.9), matShoe);
+                shoeBody.position.set(0, 0.35, -0.05);
+                group.add(shoeBody);
+            } else if (type === 'magnet') {
+                const magnetMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.8 });
+                const tipMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9 });
+                const body = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.12, 8, 16, Math.PI), magnetMat);
+                body.rotation.z = Math.PI;
+                group.add(body);
+                const tipL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.2, 0.24), tipMat);
+                tipL.position.set(-0.4, -0.15, 0);
+                group.add(tipL);
+                const tipR = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.2, 0.24), tipMat);
+                tipR.position.set(0.4, -0.15, 0);
+                group.add(tipR);
+            } else if (type === 'shield') {
+                const shieldMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 });
+                const sMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), shieldMat);
+                group.add(sMesh);
+            } else if (type === 'multiplier') {
+                const multMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.6 });
+                const badge = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.15, 12), multMat);
+                badge.rotateX(Math.PI / 2);
+                group.add(badge);
+            }
+
+            group.castShadow = true;
+            return group;
+        }
+
+        /* =========================================================================
+           8. SÜRÜŞ VE OYUN MANTIĞI
+           ========================================================================= */
+        function updateGameLogic(delta) {
+            if (!isPlaying) return;
+
+            // Skor Çarpanı Kontrolü
+            const speedMultiplier = activePowerups.multiplier.active ? 2.0 : 1.0;
+            distance += gameSpeed * delta * speedMultiplier;
+            gameSpeed = Math.min(maxGameSpeed, gameSpeed + delta * 0.25);
+            
+            const currentDistFloor = Math.floor(distance);
+            document.getElementById('hud-distance').innerText = `${currentDistFloor} m`;
+
+            if (currentDistFloor > saveData.bestScore) {
+                saveData.bestScore = currentDistFloor;
+                document.getElementById('hud-best-score').innerText = `${saveData.bestScore} m`;
+            }
+
+            // --- GECE / GÜNDÜZ & HAVA DURUMU DÖNGÜSÜ ---
+            updateEnvironmentCycle(currentDistFloor);
+
+            citySegments.forEach(seg => {
+                seg.position.z += gameSpeed * delta;
+                if (seg.position.z > SEGMENT_LENGTH) {
+                    seg.position.z -= NUM_SEGMENTS * SEGMENT_LENGTH;
+                    spawnObstacleAndCoins(seg.position.z - 20);
+                }
+            });
+
+            const targetX = LANES[currentLane];
+            playerGroup.position.x = THREE.MathUtils.lerp(playerGroup.position.x, targetX, gameSettings.turnSpeed);
+
+            const xDiff = targetX - playerGroup.position.x;
+            scooterMesh.rotation.z = -xDiff * 0.15;
+
+            camera.position.x = THREE.MathUtils.lerp(camera.position.x, playerGroup.position.x * 0.65, 0.15);
+
+            if (isJumping) {
+                jumpVelocity += gravity * delta;
+                playerGroup.position.y += jumpVelocity * delta;
+
+                if (playerGroup.position.y <= 0) {
+                    playerGroup.position.y = 0;
+                    isJumping = false;
+                    jumpVelocity = 0;
+                }
+            }
+
+            // GÜÇLENDİRİCİ SÜRELERİNİ GÜNCELLE
+            updateActivePowerups(delta);
+
+            // MIKNATIS ETKİSİ (Yakındaki Altınları Çekme)
+            if (activePowerups.magnet.active) {
+                coins.forEach(coin => {
+                    const distToPlayer = coin.position.distanceTo(playerGroup.position);
+                    if (distToPlayer < 12.0) {
+                        coin.position.x = THREE.MathUtils.lerp(coin.position.x, playerGroup.position.x, 0.15);
+                        coin.position.y = THREE.MathUtils.lerp(coin.position.y, playerGroup.position.y + 0.8, 0.15);
+                    }
+                });
+            }
+
+            // ENGELLER VE ÇARPIŞMA TESTİ
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                const type = obs.userData.type;
+                
+                let totalSpeed = gameSpeed;
+                if (type === 'car') {
+                    totalSpeed += (obs.userData.driveSpeed || 15);
+                }
+                obs.position.z += totalSpeed * delta;
+
+                const dz = Math.abs(playerGroup.position.z - obs.position.z);
+                const dx = Math.abs(playerGroup.position.x - obs.position.x);
+                const py = playerGroup.position.y;
+
+                if (dz < 1.8 && dx < 1.1) {
+                    let hasCrashed = false;
+
+                    if (type === 'car') {
+                        if (py < 1.5) hasCrashed = true;
+                    } else if (type === 'jump_barrier') {
+                        if (py < 0.9) hasCrashed = true;
+                    }
+
+                    if (hasCrashed) {
+                        // Kalkan aktifse bir darbeyi absorbe eder.
+                        // Seviye 1 = 1 darbe, Seviye 2 = 2 darbe, ... Seviye 5 = 5 darbe.
+                        if (activePowerups.shield.active) {
+                            activePowerups.shield.hitsRemaining = Math.max(0, (activePowerups.shield.hitsRemaining || 1) - 1);
+
+                            scene.remove(obs);
+                            obstacles.splice(i, 1);
+
+                            if (activePowerups.shield.hitsRemaining > 0) {
+                                const shieldText = document.getElementById('powerup-timer-shield');
+                                if (shieldText) shieldText.innerText = `${Math.ceil(activePowerups.shield.timer)}s · ${activePowerups.shield.hitsRemaining} darbe`;
+                                showToast(`🛡️ Darbe emildi! ${activePowerups.shield.hitsRemaining} darbe kaldı.`, true);
+                                playPowerupSound();
+                                continue;
+                            }
+
+                            activePowerups.shield.active = false;
+                            activePowerups.shield.timer = 0;
+                            shieldBubbleMesh.visible = false;
+                            document.getElementById('powerup-shield').classList.add('hidden');
+                            showToast('🛡️ Kalkan son darbeyi emdi!', true);
+                            playPowerupSound();
+                            continue;
+                        }
+
+                        playCrashSound();
+                        triggerGameOver();
+                        return;
+                    }
+                }
+
+                if (obs.position.z > 15) {
+                    scene.remove(obs);
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            // POWER-UP TOPLAMA TESTİ
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const pu = powerups[i];
+                pu.position.z += gameSpeed * delta;
+                pu.rotation.y += delta * 3;
+
+                const dz = Math.abs(playerGroup.position.z - pu.position.z);
+                const dx = Math.abs(playerGroup.position.x - pu.position.x);
+
+                if (dz < 1.4 && dx < 1.1) {
+                    const pType = pu.userData.powerupType;
+                    scene.remove(pu);
+                    powerups.splice(i, 1);
+                    
+                    activatePowerup(pType);
+                    currentRunPowerupsCollected++;
+                    checkMissionsProgress();
+                    playPowerupSound();
+                } else if (pu.position.z > 15) {
+                    scene.remove(pu);
+                    powerups.splice(i, 1);
+                }
+            }
+
+            // ALTINLARI TOPLAMA
+            for (let i = coins.length - 1; i >= 0; i--) {
+                const coin = coins[i];
+                coin.position.z += gameSpeed * delta;
+                coin.rotation.z += 0.05;
+
+                const dz = Math.abs(playerGroup.position.z - coin.position.z);
+                const dx = Math.abs(playerGroup.position.x - coin.position.x);
+                const dy = Math.abs(playerGroup.position.y - coin.position.y);
+
+                if (dz < 1.2 && dx < 1.0 && dy < 1.6) {
+                    scene.remove(coin);
+                    coins.splice(i, 1);
+                    coinsCollected++;
+                    saveData.totalCoins++;
+                    writeSaveData();
+                    checkMissionsProgress();
+                    playCoinSound();
+                } else if (coin.position.z > 15) {
+                    scene.remove(coin);
+                    coins.splice(i, 1);
+                }
+            }
+
+            // Kar partikülleri
+            if (snowParticles && snowParticles.visible) {
+                const pos = snowParticles.geometry.attributes.position.array;
+                for (let i = 0; i < pos.length; i += 3) {
+                    pos[i+1] -= delta * 2.0;
+                    pos[i] += Math.sin((i + distance) * 0.02) * delta * 0.12;
+                    if (pos[i+1] < 0) {
+                        pos[i+1] = 22;
+                        pos[i] = (Math.random() - 0.5) * 30;
+                        pos[i+2] = (Math.random() - 0.5) * 32;
+                    }
+                }
+                snowParticles.geometry.attributes.position.needsUpdate = true;
+            }
+
+            // Karda scooterın arkasında iki lastik izi.
+            if (isSnowSeason) {
+                snowTrackTimer += delta;
+                if (snowTrackTimer >= 0.11 && playerGroup) {
+                    snowTrackTimer = 0;
+                    [-0.13, 0.13].forEach(offset => {
+                        const mat = new THREE.MeshBasicMaterial({ color: 0x8fa3b5, transparent: true, opacity: 0.42, depthWrite: false });
+                        const track = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.48), mat);
+                        track.rotation.x = -Math.PI / 2;
+                        track.position.set(playerGroup.position.x + offset, 0.026, playerGroup.position.z + 0.52);
+                        scene.add(track);
+                        snowTracks.push({ mesh: track, age: 0 });
+                    });
+                }
+            } else {
+                snowTrackTimer = 0;
+            }
+
+            for (let i = snowTracks.length - 1; i >= 0; i--) {
+                const t = snowTracks[i];
+                t.age += delta;
+                t.mesh.position.z += gameSpeed * delta;
+                t.mesh.material.opacity = 0.42 * Math.max(0, 1 - t.age / 5);
+                if (t.age > 5 || t.mesh.position.z > 18) {
+                    scene.remove(t.mesh);
+                    t.mesh.geometry.dispose();
+                    t.mesh.material.dispose();
+                    snowTracks.splice(i, 1);
+                }
+            }
+
+            // Yağmur Partikül Hareketi
+            if (rainParticles && rainParticles.visible) {
+                const pos = rainParticles.geometry.attributes.position.array;
+                for (let i = 1; i < pos.length; i += 3) {
+                    pos[i] -= 0.8;
+                    if (pos[i] < 0) pos[i] = 20;
+                }
+                rainParticles.geometry.attributes.position.needsUpdate = true;
+            }
+        }
+
+        /* =========================================================================
+           9. GECE-GÜNDÜZ & HAVA DURUMU DÖNGÜSÜ
+           ========================================================================= */
+        function updateEnvironmentCycle(m) {
+            const cycle = m % 1600;
+            isSnowSeason = cycle >= 1200;
+
+            if (cycle < 400) {
+                scene.background.setHex(0x70b5f9);
+                scene.fog.color.setHex(0x70b5f9);
+                scene.fog.density = 0.008;
+                dirLight.intensity = 1.1; ambientLight.intensity = 0.75;
+                headlightLight.intensity = 0;
+            } else if (cycle < 800) {
+                scene.background.setHex(0xf97316);
+                scene.fog.color.setHex(0xf97316);
+                scene.fog.density = 0.008;
+                dirLight.intensity = 0.6; ambientLight.intensity = 0.5;
+                headlightLight.intensity = 1.5;
+            } else if (cycle < 1200) {
+                scene.background.setHex(0x0f172a);
+                scene.fog.color.setHex(0x0f172a);
+                scene.fog.density = 0.008;
+                dirLight.intensity = 0.2; ambientLight.intensity = 0.25;
+                headlightLight.intensity = 3.5;
+            } else {
+                scene.background.setHex(0xcfe8f7);
+                scene.fog.color.setHex(0xe5f3fb);
+                scene.fog.density = 0.0105;
+                dirLight.intensity = 0.9; ambientLight.intensity = 0.85;
+                headlightLight.intensity = 0.25;
+            }
+
+            rainParticles.visible = cycle >= 800 && cycle < 1200;
+            snowParticles.visible = isSnowSeason;
+
+            citySegments.forEach(seg => {
+                const snowRoad = seg.userData && seg.userData.snowRoad;
+                if (snowRoad) snowRoad.material.opacity = isSnowSeason ? 0.88 : 0;
+            });
+        }
+
+        /* =========================================================================
+           10. GÜÇLENDİRİCİ VE YÜKSELTME MANTIĞI
+           ========================================================================= */
+        function activatePowerup(type) {
+            const lvl = saveData.upgrades[type] || 1;
+            const duration = activePowerups[type].baseDuration + (type === 'shield' ? 0 : (lvl - 1) * 3);
+
+            activePowerups[type].active = true;
+            activePowerups[type].timer = duration;
+
+            if (type === 'shield') {
+                activePowerups.shield.hitsRemaining = Math.min(5, Math.max(1, lvl));
+            }
+
+            document.getElementById(`powerup-${type}`).classList.remove('hidden');
+
+            if (type === 'shoes') auraMesh.visible = true;
+            if (type === 'shield') {
+                shieldBubbleMesh.visible = true;
+                const shieldText = document.getElementById('powerup-timer-shield');
+                if (shieldText) shieldText.innerText = `${Math.ceil(activePowerups.shield.timer)}s · ${activePowerups.shield.hitsRemaining} darbe`;
+            }
+        }
+
+        function updateActivePowerups(delta) {
+            Object.keys(activePowerups).forEach(type => {
+                const pu = activePowerups[type];
+                if (pu.active) {
+                    pu.timer -= delta;
+                    const lvl = saveData.upgrades[type] || 1;
+                    const totalDur = pu.baseDuration + (type === 'shield' ? 0 : (lvl - 1) * 3);
+                    const ratio = Math.max(0, pu.timer / totalDur);
+
+                    const fillEl = document.getElementById(`powerup-bar-fill-${type}`);
+                    const textEl = document.getElementById(`powerup-timer-${type}`);
+
+                    if (fillEl) fillEl.style.width = `${ratio * 100}%`;
+                    if (textEl) textEl.innerText = type === 'shield' ? `${Math.ceil(pu.timer)}s · ${Math.max(0, pu.hitsRemaining || 0)} darbe` : `${Math.ceil(pu.timer)}s`;
+
+                    if (pu.timer <= 0) {
+                        pu.active = false;
+                        document.getElementById(`powerup-${type}`).classList.add('hidden');
+
+                        if (type === 'shoes') auraMesh.visible = false;
+                        if (type === 'shield') shieldBubbleMesh.visible = false;
+                    }
+                }
+            });
+        }
+
+        function upgradePowerup(type) {
+            const currentLvl = saveData.upgrades[type] || 1;
+            if (currentLvl >= 5) {
+                showToast('Maksimum Seviyedesin!');
+                return;
+            }
+
+            const cost = currentLvl * 200;
+            if (saveData.totalCoins >= cost) {
+                saveData.totalCoins -= cost;
+                saveData.upgrades[type] = currentLvl + 1;
+                writeSaveData();
+                renderUpgradesUI();
+                showToast('🚀 Güçlendirici Yükseltildi!', true);
+            } else {
+                showToast('Yetersiz Altın!');
+            }
+        }
+
+        function renderUpgradesUI() {
+            const types = ['magnet', 'shield', 'multiplier', 'shoes'];
+            types.forEach(t => {
+                const lvl = saveData.upgrades[t] || 1;
+                const dotsEl = document.getElementById(`dots-${t}`);
+                if (dotsEl) {
+                    dotsEl.innerHTML = '';
+                    for (let i = 1; i <= 5; i++) {
+                        const dot = document.createElement('div');
+                        dot.className = `upgrade-dot ${i <= lvl ? 'filled' : ''}`;
+                        dotsEl.appendChild(dot);
+                    }
+                }
+
+                const btn = document.getElementById(`btn-up-${t}`);
+                if (btn) {
+                    if (lvl >= 5) {
+                        btn.innerText = 'MAKS';
+                        btn.style.background = '#10b981';
+                    } else {
+                        btn.innerText = `Yükselt ($${lvl * 200})`;
+                        btn.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+                    }
+                }
+            });
+        }
+
+        /* =========================================================================
+           11. GÖREV SİSTEMİ MANTIĞI
+           ========================================================================= */
+        function checkMissionsProgress() {
+            MISSIONS.forEach(m => {
+                if (saveData.completedMissions.includes(m.id)) return;
+
+                let done = false;
+                if (m.type === 'coins' && coinsCollected >= m.target) done = true;
+                if (m.type === 'distance' && distance >= m.target) done = true;
+                if (m.type === 'powerups' && currentRunPowerupsCollected >= m.target) done = true;
+
+                if (done) {
+                    saveData.completedMissions.push(m.id);
+                    saveData.totalCoins += m.reward;
+                    writeSaveData();
+                    showToast(`🏆 Görev Tamamlandı! +${m.reward} Altın`, true);
+                }
+            });
+        }
+
+        function renderMissionsUI() {
+            const container = document.getElementById('missions-list-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            MISSIONS.forEach(m => {
+                const isCompleted = saveData.completedMissions.includes(m.id);
+                const card = document.createElement('div');
+                card.className = 'upgrade-row';
+                card.innerHTML = `
+                    <div>
+                        <div class="upgrade-info">${m.text}</div>
+                        <div style="font-size:11px; color:#f59e0b; margin-top:2px;">Ödül: +${m.reward} Altın</div>
+                    </div>
+                    <span style="font-size:12px; font-weight:900; color:${isCompleted ? '#10b981' : '#94a3b8'}">
+                        ${isCompleted ? '✓ TAMAMLANDI' : 'DEVAM EDİYOR'}
+                    </span>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function checkWeeklyQuestsProgress() {
+            ensureWeeklyReset();
+            const p = saveData.weeklyQuests.progress;
+            WEEKLY_QUESTS.forEach(q => {
+                if (saveData.weeklyQuests.claimed.includes(q.id)) return;
+                if ((p[q.type] || 0) >= q.target) {
+                    saveData.weeklyQuests.claimed.push(q.id);
+                    saveData.totalCoins += q.reward;
+                    writeSaveData();
+                    showToast(`⭐ Haftalık Görev Tamamlandı! +${q.reward} Altın`, true);
+                }
+            });
+        }
+
+        function renderWeeklyQuestsUI() {
+            ensureWeeklyReset();
+            const container = document.getElementById('weekly-quests-list-container');
+            if (container) {
+                container.innerHTML = '';
+                const p = saveData.weeklyQuests.progress;
+
+                WEEKLY_QUESTS.forEach(q => {
+                    const isClaimed = saveData.weeklyQuests.claimed.includes(q.id);
+                    const current = Math.min(p[q.type] || 0, q.target);
+                    const pct = Math.floor((current / q.target) * 100);
+                    const card = document.createElement('div');
+                    card.className = 'upgrade-row';
+                    card.style.flexDirection = 'column';
+                    card.style.alignItems = 'stretch';
+                    card.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div class="upgrade-info"><i class="fa-solid ${q.icon}" style="color:#38bdf8; margin-right:6px;"></i>${q.text}</div>
+                            <span style="font-size:11px; font-weight:900; color:${isClaimed ? '#10b981' : '#f59e0b'}; white-space:nowrap; margin-left:8px;">
+                                ${isClaimed ? '✓ ALINDI' : `+${q.reward}`}
+                            </span>
+                        </div>
+                        <div style="background:#0f172a; border-radius:8px; height:8px; margin-top:8px; overflow:hidden;">
+                            <div style="background:${isClaimed ? '#10b981' : '#38bdf8'}; height:100%; width:${pct}%;"></div>
+                        </div>
+                        <div style="font-size:11px; color:#94a3b8; margin-top:4px; text-align:right;">${current} / ${q.target}</div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+
+            const resetInfo = document.getElementById('weekly-reset-info');
+            if (resetInfo) {
+                resetInfo.innerText = `Yenilenmeye ${daysUntilNextReset()} gün kaldı`;
+            }
+        }
+
+        /* =========================================================================
+           SKOR TABLOSU (ORTAK LİDERLİK TABLOSU)
+           ========================================================================= */
+        const LEADERBOARD_PREFIX = 'leaderboard:';
+
+        async function submitScoreToLeaderboard(score) {
+            try {
+                if (!window.storage || !saveData.playerId) return;
+                const name = (saveData.playerName || 'Oyuncu').trim().slice(0, 14) || 'Oyuncu';
+                const key = LEADERBOARD_PREFIX + saveData.playerId;
+
+                let existing = null;
+                try {
+                    const res = await window.storage.get(key, true);
+                    existing = res ? JSON.parse(res.value) : null;
+                } catch (e) {
+                    existing = null;
+                }
+
+                if (!existing || score > existing.score) {
+                    await window.storage.set(key, JSON.stringify({
+                        name: name,
+                        score: score,
+                        date: new Date().toISOString()
+                    }), true);
+                }
+            } catch (e) {
+                // Skor tablosuna yazılamadı, oyun akışını bozma
+            }
+        }
+
+        async function renderLeaderboardUI() {
+            const container = document.getElementById('leaderboard-list-container');
+            if (!container) return;
+
+            if (!window.storage) {
+                container.innerHTML = `<div style="text-align:center; color:#64748b; padding:20px 10px; font-size:13px; line-height:1.6;">
+                    Skor tablosu şu an bu ortamda kullanılamıyor.<br>Oyunu Claude bağlantısı üzerinden açtığında skorlar herkes arasında senkronize olur.
+                </div>`;
+                return;
+            }
+
+            container.innerHTML = `<div style="text-align:center; color:#64748b; padding: 20px 0;">Yükleniyor...</div>`;
+
+            try {
+                const listResult = await window.storage.list(LEADERBOARD_PREFIX, true);
+                const keys = (listResult && listResult.keys) ? listResult.keys : [];
+
+                if (keys.length === 0) {
+                    container.innerHTML = `<div style="text-align:center; color:#64748b; padding:20px 10px; font-size:13px;">Henüz kimse skor göndermedi. İlk sen ol!</div>`;
+                    return;
+                }
+
+                const entries = [];
+                for (const k of keys) {
+                    try {
+                        const res = await window.storage.get(k, true);
+                        if (res && res.value) {
+                            const parsed = JSON.parse(res.value);
+                            if (parsed && typeof parsed.score === 'number') entries.push(parsed);
+                        }
+                    } catch (e) { /* bu kaydı atla */ }
+                }
+
+                entries.sort((a, b) => b.score - a.score);
+                const top = entries.slice(0, 20);
+
+                if (top.length === 0) {
+                    container.innerHTML = `<div style="text-align:center; color:#64748b; padding:20px 10px; font-size:13px;">Henüz kimse skor göndermedi. İlk sen ol!</div>`;
+                    return;
+                }
+
+                container.innerHTML = '';
+                const myName = (saveData.playerName || '').trim();
+
+                top.forEach((entry, idx) => {
+                    const rank = idx + 1;
+                    const isMe = entry.name === myName;
+                    const row = document.createElement('div');
+                    row.className = 'upgrade-row';
+                    if (isMe) row.style.border = '2px solid #a855f7';
+
+                    let rankColor = '#94a3b8';
+                    if (rank === 1) rankColor = '#f59e0b';
+                    else if (rank === 2) rankColor = '#cbd5e1';
+                    else if (rank === 3) rankColor = '#d97706';
+
+                    row.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-weight:900; color:${rankColor}; width:22px; text-align:center;">${rank}</span>
+                            <span class="upgrade-info">${escapeHtml(entry.name)}</span>
+                        </div>
+                        <span style="font-weight:900; color:#38bdf8;">${entry.score} m</span>
+                    `;
+                    container.appendChild(row);
+                });
+            } catch (e) {
+                container.innerHTML = `<div style="text-align:center; color:#ef4444; padding:20px 10px; font-size:13px;">Skor tablosu yüklenemedi. Lütfen tekrar dene.</div>`;
+            }
+        }
+
+        /* =========================================================================
+           12. KONTROLLER
+           ========================================================================= */
+        function moveLeft() {
+            if (!isPlaying) return;
+            if (currentLane > 0) currentLane--;
+        }
+
+        function moveRight() {
+            if (!isPlaying) return;
+            if (currentLane < LANES.length - 1) currentLane++;
+        }
+
+        function jump() {
+            if (!isPlaying) return;
+            if (!isJumping) {
+                isJumping = true;
+                jumpVelocity = activePowerups.shoes.active ? SUPER_JUMP_FORCE : NORMAL_JUMP_FORCE;
+            }
+        }
+
+        function setupInputListeners() {
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'ArrowLeft' || e.code === 'KeyA') moveLeft();
+                if (e.code === 'ArrowRight' || e.code === 'KeyD') moveRight();
+                if (e.code === 'ArrowUp' || e.code === 'Space' || e.code === 'KeyW') jump();
+            });
+
+            const bindBtn = (id, fn) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); fn(); });
+                el.addEventListener('click', fn);
+            };
+
+            bindBtn('btn-left', moveLeft);
+            bindBtn('btn-right', moveRight);
+            bindBtn('btn-jump', jump);
+
+            let touchStartX = 0;
+            let touchStartY = 0;
+
+            window.addEventListener('touchstart', (e) => {
+                initAudio();
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            });
+
+            window.addEventListener('touchend', (e) => {
+                const diffX = e.changedTouches[0].screenX - touchStartX;
+                const diffY = e.changedTouches[0].screenY - touchStartY;
+
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    if (diffX > 35) moveRight();
+                    else if (diffX < -35) moveLeft();
+                } else {
+                    if (diffY < -35) jump();
+                }
+            });
+        }
+
+        /* =========================================================================
+           13. ARAYÜZ VE TAB YÖNETİMİ
+           ========================================================================= */
+        function switchShopTab(tab) {
+            document.getElementById('tab-btn-custom').classList.remove('active');
+            document.getElementById('tab-btn-upgrades').classList.remove('active');
+
+            document.getElementById('shop-tab-content-custom').classList.add('hidden');
+            document.getElementById('shop-tab-content-upgrades').classList.add('hidden');
+
+            document.getElementById(`tab-btn-${tab}`).classList.add('active');
+            document.getElementById(`shop-tab-content-${tab}`).classList.remove('hidden');
+
+            if (tab === 'upgrades') renderUpgradesUI();
+        }
+
+        function switchMissionsTab(tab) {
+            document.getElementById('tab-btn-missions-weekly').classList.remove('active');
+            document.getElementById('tab-btn-missions-achievements').classList.remove('active');
+
+            document.getElementById('missions-tab-content-weekly').classList.add('hidden');
+            document.getElementById('missions-tab-content-achievements').classList.add('hidden');
+
+            document.getElementById(`tab-btn-missions-${tab}`).classList.add('active');
+            document.getElementById(`missions-tab-content-${tab}`).classList.remove('hidden');
+
+            if (tab === 'weekly') renderWeeklyQuestsUI();
+            if (tab === 'achievements') renderMissionsUI();
+        }
+
+        function refreshShopUI() {
+            updateUIStats();
+
+            document.querySelectorAll('[id^="shop-skin-"]').forEach(el => el.classList.remove('active'));
+            const activeSkinEl = document.getElementById(`shop-skin-${saveData.selectedSkin}`);
+            if (activeSkinEl) activeSkinEl.classList.add('active');
+
+            const priceDinoEl = document.getElementById('price-dino');
+            if (priceDinoEl) {
+                if (saveData.unlockedSkins.includes('dino')) {
+                    priceDinoEl.innerText = 'AÇIK';
+                    priceDinoEl.style.color = '#10b981';
+                } else {
+                    priceDinoEl.innerText = '350 Altın';
+                    priceDinoEl.style.color = '#f59e0b';
+                }
+            }
+
+            const priceNeonEl = document.getElementById('price-neon');
+            if (priceNeonEl) {
+                if (saveData.unlockedSkins.includes('neon')) {
+                    priceNeonEl.innerText = 'AÇIK';
+                    priceNeonEl.style.color = '#10b981';
+                } else {
+                    priceNeonEl.innerText = '600 Altın';
+                    priceNeonEl.style.color = '#f59e0b';
+                }
+            }
+
+            document.querySelectorAll('[id^="shop-scooter-"]').forEach(el => el.classList.remove('active'));
+            const activeScooterEl = document.getElementById(`shop-scooter-${saveData.selectedScooter}`);
+            if (activeScooterEl) activeScooterEl.classList.add('active');
+
+            const scooters = [
+                { id: 'blue', price: 150 },
+                { id: 'red', price: 250 },
+                { id: 'gold', price: 500 }
+            ];
+
+            scooters.forEach(s => {
+                const el = document.getElementById(`price-scooter-${s.id}`);
+                if (el) {
+                    if (saveData.unlockedScooters.includes(s.id)) {
+                        el.innerText = 'AÇIK';
+                        el.style.color = '#10b981';
+                    } else {
+                        el.innerText = `${s.price} Altın`;
+                        el.style.color = '#f59e0b';
+                    }
+                }
+            });
+        }
+
+        function selectOutfit(id) {
+            if (!Array.isArray(saveData.unlockedSkins)) saveData.unlockedSkins = ['default'];
+            if (!saveData.unlockedSkins.includes(id)) return;
+            saveData.selectedSkin = id;
+            writeSaveData();
+            refreshShopUI();
+            createPlayer();
+        }
+
+        function buyOrSelectOutfit(id, cost) {
+            if (!Array.isArray(saveData.unlockedSkins)) saveData.unlockedSkins = ['default'];
+            if (saveData.unlockedSkins.includes(id)) {
+                selectOutfit(id);
+                return;
+            }
+            if (saveData.totalCoins < cost) {
+                showToast('Yetersiz Altın!');
+                return;
+            }
+            saveData.totalCoins -= cost;
+            saveData.unlockedSkins = [...new Set([...saveData.unlockedSkins, id])];
+            saveData.selectedSkin = id;
+            writeSaveData();
+            refreshShopUI();
+            createPlayer();
+            showToast(id === 'neon' ? 'Neon Rider kuşanıldı!' : 'Dinazor Kostümü kuşanıldı!', true);
+        }
+
+        function selectScooterColor(id) {
+            saveData.selectedScooter = id;
+            writeSaveData();
+            refreshShopUI();
+            createPlayer();
+        }
+
+        function buyOrSelectScooter(id, cost) {
+            if (saveData.unlockedScooters.includes(id)) {
+                selectScooterColor(id);
+            } else if (saveData.totalCoins >= cost) {
+                saveData.totalCoins -= cost;
+                saveData.unlockedScooters.push(id);
+                selectScooterColor(id);
+            } else {
+                showToast('Yetersiz Altın!');
+            }
+        }
+
+        function applySettings() {
+            const soundEl = document.getElementById('setting-sound');
+            const volEl = document.getElementById('setting-volume');
+            const touchEl = document.getElementById('setting-touch-btns');
+            const turnEl = document.getElementById('setting-turn-speed');
+
+            if (soundEl) gameSettings.soundEnabled = soundEl.checked;
+            if (volEl) gameSettings.volume = parseFloat(volEl.value) / 100;
+            if (touchEl) gameSettings.showTouchButtons = touchEl.checked;
+            if (turnEl) gameSettings.turnSpeed = parseFloat(turnEl.value);
+
+            const touchBox = document.getElementById('touch-controls');
+            if (touchBox) {
+                if (gameSettings.showTouchButtons) {
+                    touchBox.classList.remove('hidden');
+                } else {
+                    touchBox.classList.add('hidden');
+                }
+            }
+
+            updateVolumeLevel();
+        }
+
+        // Modal Buton Dinleyicileri
+        const safeAddClick = (id, fn) => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('click', fn);
+        };
+
+        safeAddClick('btn-open-shop', () => {
+            refreshShopUI();
+            document.getElementById('modal-start').classList.add('hidden');
+            document.getElementById('modal-shop').classList.remove('hidden');
+        });
+
+        safeAddClick('btn-gameover-shop', () => {
+            refreshShopUI();
+            document.getElementById('modal-gameover').classList.add('hidden');
+            document.getElementById('modal-shop').classList.remove('hidden');
+        });
+
+        safeAddClick('btn-close-shop', () => {
+            document.getElementById('modal-shop').classList.add('hidden');
+            document.getElementById('modal-start').classList.remove('hidden');
+        });
+
+        safeAddClick('btn-open-missions', () => {
+            switchMissionsTab('weekly');
+            document.getElementById('modal-start').classList.add('hidden');
+            document.getElementById('modal-missions').classList.remove('hidden');
+        });
+
+        safeAddClick('btn-open-leaderboard', () => {
+            document.getElementById('modal-start').classList.add('hidden');
+            document.getElementById('modal-leaderboard').classList.remove('hidden');
+            renderLeaderboardUI();
+        });
+
+        safeAddClick('btn-gameover-leaderboard', () => {
+            document.getElementById('modal-gameover').classList.add('hidden');
+            document.getElementById('modal-leaderboard').classList.remove('hidden');
+            renderLeaderboardUI();
+        });
+
+        safeAddClick('btn-close-leaderboard', () => {
+            document.getElementById('modal-leaderboard').classList.add('hidden');
+            document.getElementById('modal-start').classList.remove('hidden');
+        });
+
+        safeAddClick('btn-close-missions', () => {
+            document.getElementById('modal-missions').classList.add('hidden');
+            document.getElementById('modal-start').classList.remove('hidden');
+        });
+
+        safeAddClick('btn-open-settings', () => {
+            document.getElementById('modal-start').classList.add('hidden');
+            document.getElementById('modal-settings').classList.remove('hidden');
+        });
+
+        safeAddClick('btn-gameover-settings', () => {
+            document.getElementById('modal-gameover').classList.add('hidden');
+            document.getElementById('modal-settings').classList.remove('hidden');
+        });
+
+        safeAddClick('btn-close-settings', () => {
+            applySettings();
+            document.getElementById('modal-settings').classList.add('hidden');
+            document.getElementById('modal-start').classList.remove('hidden');
+        });
+
+        function startGame() {
+            initAudio();
+            startMusic();
+
+            ensureWeeklyReset();
+            saveData.weeklyQuests.progress.runs += 1;
+            writeSaveData();
+
+            distance = 0;
+            coinsCollected = 0;
+            currentRunPowerupsCollected = 0;
+            gameSpeed = 32;
+            currentLane = 1;
+            isJumping = false;
+            
+            // Power-up Sıfırla
+            Object.keys(activePowerups).forEach(t => {
+                activePowerups[t].active = false;
+                activePowerups[t].timer = 0;
+                const hudEl = document.getElementById(`powerup-${t}`);
+                if (hudEl) hudEl.classList.add('hidden');
+            });
+            
+            playerGroup.position.set(LANES[currentLane], 0, 0);
+            camera.position.x = 0;
+            if (auraMesh) auraMesh.visible = false;
+            if (shieldBubbleMesh) shieldBubbleMesh.visible = false;
+
+            obstacles.forEach(o => scene.remove(o));
+            coins.forEach(c => scene.remove(c));
+            powerups.forEach(p => scene.remove(p));
+            obstacles = [];
+            coins = [];
+            powerups = [];
+            snowTracks.forEach(t => {
+                scene.remove(t.mesh);
+                t.mesh.geometry.dispose();
+                t.mesh.material.dispose();
+            });
+            snowTracks = [];
+            snowTrackTimer = 0;
+
+            document.getElementById('hud-distance').innerText = '0 m';
+
+            document.getElementById('modal-start').classList.add('hidden');
+            document.getElementById('modal-gameover').classList.add('hidden');
+
+            isPlaying = true;
+        }
+
+        function triggerGameOver() {
+            isPlaying = false;
+            stopMusic();
+
+            const finalDist = Math.floor(distance);
+            if (finalDist > saveData.bestScore) {
+                saveData.bestScore = finalDist;
+            }
+
+            ensureWeeklyReset();
+            saveData.weeklyQuests.progress.distance += finalDist;
+            saveData.weeklyQuests.progress.coins += coinsCollected;
+            saveData.weeklyQuests.progress.powerups += currentRunPowerupsCollected;
+            writeSaveData();
+            checkWeeklyQuestsProgress();
+
+            document.getElementById('end-distance').innerText = `${finalDist} m`;
+            document.getElementById('end-best-distance').innerText = `${saveData.bestScore} m`;
+            document.getElementById('end-coins').innerText = coinsCollected;
+            document.getElementById('modal-gameover').classList.remove('hidden');
+
+            submitScoreToLeaderboard(finalDist);
+        }
+
+        safeAddClick('btn-start', startGame);
+        safeAddClick('btn-restart', startGame);
+        safeAddClick('btn-pause', () => {
+            if (isPlaying) {
+                isPlaying = false;
+                stopMusic();
+                document.getElementById('modal-start').classList.remove('hidden');
+            }
+        });
+
+        /* =========================================================================
+           14. RENDER DÖNGÜSÜ
+           ========================================================================= */
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = Math.min(clock.getDelta(), 0.1);
+            updateGameLogic(delta);
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = () => {
+            initEngine();
+            applySettings();
+        };
+    </script>
+</body>
+</html>
